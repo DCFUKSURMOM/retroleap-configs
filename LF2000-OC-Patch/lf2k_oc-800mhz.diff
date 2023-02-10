@@ -1,0 +1,336 @@
+diff --git a/arch/arm/mach-nxp3200/gpio_map.c b/arch/arm/mach-nxp3200/gpio_map.c
+index 96788675..c63dcd64 100644
+--- a/arch/arm/mach-nxp3200/gpio_map.c
++++ b/arch/arm/mach-nxp3200/gpio_map.c
+@@ -762,6 +762,8 @@ static void init_rio_ep(void)
+ 	/* nSCS[2]   - pin C15 */
+ 
+ 	/* nSCS[3]   - pin C16 */
++	//gpio_map[TOUCHSCREEN_Y2]	= LF2000_GPIO_PORT_C | 25;
++	//gpio_map[TOUCHSCREEN_X2]	= LF2000_GPIO_PORT_C | 26;
+ 	gpio_map[NEONODE_TEST]		= LF2000_GPIO_PORT_C | 17;
+ 	gpio_map[NEONODE_RST]		= LF2000_GPIO_PORT_C | 18;
+ 	gpio_map[CARTRIDGE_DETECT]	= LF2000_GPIO_PORT_C | 19;
+diff --git a/arch/arm/mach-nxp3200/include/mach/cfg_main.h b/arch/arm/mach-nxp3200/include/mach/cfg_main.h
+index 0c3a0980..1fc7f684 100644
+--- a/arch/arm/mach-nxp3200/include/mach/cfg_main.h
++++ b/arch/arm/mach-nxp3200/include/mach/cfg_main.h
+@@ -30,14 +30,16 @@
+  * 	System PLL / BUS config
+  */
+ /* cpu clock : fclk mclk bclk pclk */
+-#define	CFG_SYS_CLKPWR_UPDATE					CFALSE
+-#define	CFG_SYS_CLKPWR_SYNC_BUS					CFALSE
++#define	CFG_SYS_CLKPWR_UPDATE					CTRUE
++#define	CFG_SYS_CLKPWR_SYNC_BUS					CTRUE
++
++#define CFG_SYS_CPU_CORE_FREQ                   1
+ 
+ /* memory timing config : not stable */
+ 
+-#define CFG_SYS_MCUD_UPDATE						CFALSE
++#define CFG_SYS_MCUD_UPDATE						CTRUE
+ #define CFG_SYS_MCUD_USE						CTRUE
+-#define	CFG_SYS_MCUD_DLLRESET					CFALSE
++#define	CFG_SYS_MCUD_DLLRESET					CTRUE
+ 
+ /* memory bus arbiter config  */
+ #define CFG_SYS_UPDATE_FASTCH					CFALSE
+diff --git a/arch/arm/mach-nxp3200/include/mach/cfg_sys.h b/arch/arm/mach-nxp3200/include/mach/cfg_sys.h
+index 2a74af19..2221dcbd 100644
+--- a/arch/arm/mach-nxp3200/include/mach/cfg_sys.h
++++ b/arch/arm/mach-nxp3200/include/mach/cfg_sys.h
+@@ -49,10 +49,12 @@
+ // +-------------+-----+-----+-----+
+ //------------------------------------------------------------------------------
+ #define	CFG_SYS_PLL0_P		3		//  1 <=, <= 63
+-//#define	CFG_SYS_PLL0_M		400		// 64 <=, <= 1023
+-#define	CFG_SYS_PLL0_M		350		// 64 <=, <= 1023
++#define	CFG_SYS_PLL0_M		400		// 64 <=, <= 1023
++//#define	CFG_SYS_PLL0_M		350		// 64 <=, <= 1023
+ //#define	CFG_SYS_PLL0_M		534		// 64 <=, <= 1023
+ //#define	CFG_SYS_PLL0_M		133		// 64 <=, <= 1023
++//#define	CFG_SYS_PLL0_M		267		// 64 <=, <= 1023
++
+ #define	CFG_SYS_PLL0_S		1		// 0, 1, 2, 3
+ #define	CFG_SYS_PLL0_FREQ	CFG_SYS_PLL_PMSFUNC(CFG_SYS_PLLFIN, CFG_SYS_PLL0_P, CFG_SYS_PLL0_M, CFG_SYS_PLL0_S)
+ 
+@@ -118,7 +120,7 @@ typedef enum {
+ 
+ extern u_int cpu_get_clock_hz(cfg_sys_clksrc clk);
+ 
+-#if 0	// sesters: removed as the DDR and CPU speeds are set by U-Boot
++#if 1	// sesters: removed as the DDR and CPU speeds are set by U-Boot
+ //------------------------------------------------------------------------------
+ // CPU clock
+ //------------------------------------------------------------------------------
+@@ -130,6 +132,7 @@ extern u_int cpu_get_clock_hz(cfg_sys_clksrc clk);
+ #define	CFG_SYS_CPU_BUSDIV_550			4
+ #define CFG_SYS_CPU_BUSDIV_700			4
+ #define	CFG_SYS_CPU_BUSDIV_800			4
++#define	CFG_SYS_CPU_BUSDIV              4
+ 
+ //------------------------------------------------------------------------------
+ // System clock
+diff --git a/arch/arm/mach-nxp3200/include/mach/lfp100.h b/arch/arm/mach-nxp3200/include/mach/lfp100.h
+index afdda5cd..ae7137cf 100644
+--- a/arch/arm/mach-nxp3200/include/mach/lfp100.h
++++ b/arch/arm/mach-nxp3200/include/mach/lfp100.h
+@@ -87,6 +87,9 @@
+ #define LFP100_P_ENABLE_WLED_EN	(1 << 5)
+ 
+ #define LFP100_DCDC1_PW		0x0F
++// Stock vcore (not sure how many volts but clearly <1.3)
++
++#define LFP100_DCDC1_PW_STOCK	(0x13)
+ #define LFP100_DCDC1_PW_1P3_VOLTS	(0x17)
+ 
+ #define LFP100_DCDC2_PW		0x10
+diff --git a/arch/arm/mach-nxp3200/lfp100.c b/arch/arm/mach-nxp3200/lfp100.c
+index c1575aae..fbc24edb 100644
+--- a/arch/arm/mach-nxp3200/lfp100.c
++++ b/arch/arm/mach-nxp3200/lfp100.c
+@@ -329,6 +329,8 @@ static ssize_t show_volume(struct device *dev, struct device_attribute *attr,
+ 	u32 tmp;
+ 
+ 	tmp = lfp100_read_reg(LFP100_VOLUME);
++	printk(KERN_WARNING "%s: LFP100 DCDC1 set to 0x%X\n",
++		__FUNCTION__, lfp100_read_reg(LFP100_DCDC1_PW));
+ 	return sprintf(buf, "VOLUME = %d\n", tmp);
+ }
+ 
+diff --git a/arch/arm/mach-nxp3200/nxp3200.c b/arch/arm/mach-nxp3200/nxp3200.c
+index 30f3f514..107b108f 100644
+--- a/arch/arm/mach-nxp3200/nxp3200.c
++++ b/arch/arm/mach-nxp3200/nxp3200.c
+@@ -32,8 +32,9 @@
+ /* nexell soc headers */
+ #include <mach/platform.h>
+ 
++
+ #if (1)
+-#define DBGOUT(msg...)		{ printk("cpu: " msg); }
++#define DBGOUT(msg...)		{ lldebugout("cpu: " msg); }
+ #else
+ #define DBGOUT(msg...)		do {} while (0)
+ #endif
+@@ -69,9 +70,17 @@ void cpu_base_init(void)
+ 	DBGOUT("base init\n");
+ 
+ 	proto_init();
++	DBGOUT("bus_init\n");
++
+ 	bus_init();
++	DBGOUT("pll_init\n");
++
+ 	pll_init();
++	DBGOUT("pll_info\n");
++
+ 	pll_info();
++	DBGOUT("boot_mode\n");
++
+ #if defined(CONFIG_PM)
+ 	boot_mode();
+ #endif
+@@ -276,17 +285,24 @@ static void pll_init(void)
+ 	pre_fclk = cpu_get_clock_hz(2);
+ 	pre_mclk = cpu_get_clock_hz(3);
+ 
++		DBGOUT("pll_init 1\n");
++
++
+ 	/* Update CPU PLL only */
+ 	#if (CTRUE == CFG_SYS_CLKPWR_UPDATE && CTRUE != CFG_SYS_MCUD_UPDATE)
+ 	{
++			DBGOUT("pll_init 2\n");
++
+ 		/* Bus mode */
+ 		if (CFG_SYS_CPU_BUSDIV != (CFG_SYS_MCLK_DIV * CFG_SYS_BCLK_DIV))
+ 			NX_CLKPWR_SetCPUBUSSyncMode(CFALSE);
++	DBGOUT("pll_init 3\n");
+ 
+ 		#if (CFG_SYS_CLKPWR_SYNC_BUS)
+ 			if (CFG_SYS_CPU_BUSDIV == (CFG_SYS_MCLK_DIV * CFG_SYS_BCLK_DIV))
+ 				NX_CLKPWR_SetCPUBUSSyncMode(CTRUE);
+ 		#endif
++	DBGOUT("pll_init 4\n");
+ 
+ 		/* Pll change */
+ 		NX_CLKPWR_SetClockCPU(CFG_SYS_CPU_CLKSRC, CFG_SYS_CPU_COREDIV, CFG_SYS_CPU_BUSDIV);
+@@ -295,8 +311,11 @@ static void pll_init(void)
+ 		NX_CLKPWR_SetPLLPowerOn(CFG_SYS_PLL1_USE);
+ 		NX_CLKPWR_SetPLLPMS(1, CFG_SYS_PLL1_P, CFG_SYS_PLL1_M, CFG_SYS_PLL1_S);
+ 		NX_CLKPWR_DoPLLChange();
++	DBGOUT("pll_init 5\n");
+ 
+ 		while (CFALSE == NX_CLKPWR_IsPLLStable()) { ; }
++			DBGOUT("pll_init 6\n");
++
+ 	}
+ 	#endif
+ 
+@@ -306,15 +325,23 @@ static void pll_init(void)
+ 		/* When faster more than current */
+ 		if (CFG_SYS_MCLK_FREQ > pre_mclk)
+ 		{
++
++
++						DBGOUT("pll_init 7\n");
++
+ 			/* 1. SetMemCfg */
+ 			NX_MCUD_SetCASLatency	(CFG_SYS_MCUD_CASLAT);
+ 			NX_MCUD_SetDelayLatency	(CFG_SYS_MCUD_DLYLAT);
++			DBGOUT("pll_init 8\n");
+ 
+ 			/* 2. InitialMemConfig */
+ 			NX_MCUD_ApplyModeSetting();
++			DBGOUT("pll_init 9\n");
+ 
+ 			while (NX_MCUD_IsBusyModeSetting()) { ; }
+ 
++			DBGOUT("pll_init 10\n");
++
+ 			/* 3. SetMemTime */
+ 			NX_MCUD_SetMRD	(CFG_SYS_MCUD_TMRD);
+ 			NX_MCUD_SetRP	(CFG_SYS_MCUD_TRP);
+@@ -327,6 +354,8 @@ static void pll_init(void)
+ 			NX_MCUD_SetActivePowerDownEnable(CFG_SYS_MCUD_ACTPDENB);
+ 			NX_MCUD_SetActivePowerDownPeriod(CFG_SYS_MCUD_ACTPDPRED);
+ 
++			DBGOUT("pll_init 11\n");
++
+ 			/* 4. SetDLL */
+ 			#if 	(CFG_SYS_MCLK_FREQ >= 400000000)
+ 			NX_MCUD_PHYDLL_SetConfig(CFALSE, 0x14, 0x14);
+@@ -345,33 +374,58 @@ static void pll_init(void)
+ 			#else
+ 			NX_MCUD_PHYDLL_SetConfig(CTRUE , 0x7F, 0x7F);
+ 			#endif
++			DBGOUT("pll_init 12\n");
+ 
+ 			NX_MCUD_SetDLLReset(CFG_SYS_MCUD_DLLRESET);
++						DBGOUT("pll_init 12.1\n");
++
+ 			NX_MCUD_SetMCLKConfig((CFG_SYS_BCLK_DIV == 2) ? CTRUE : CFALSE, (CFG_SYS_MCLK_FREQ >= 200000000) ? CTRUE : CFALSE);
++			DBGOUT("pll_init 12.2\n");
+ 
+ 			/* 5. Pll change */
+ 			if (CFG_SYS_CPU_CORE_FREQ != pre_fclk)
+ 			{
++							DBGOUT("pll_init 12.3\n");
++
+ 				NX_CLKPWR_SetClockCPU(CFG_SYS_CPU_CLKSRC, CFG_SYS_CPU_COREDIV, CFG_SYS_CPU_BUSDIV);
++							DBGOUT("pll_init 12.4\n");
++
+ 				NX_CLKPWR_SetClockMCLK(CFG_SYS_MCLK_CLKSRC, CFG_SYS_MCLK_DIV, CFG_SYS_BCLK_DIV, CFG_SYS_PCLK_DIV);
++			DBGOUT("pll_init 12.5\n");
++
+ 				NX_CLKPWR_SetPLLPMS(0, CFG_SYS_PLL0_P, CFG_SYS_PLL0_M, CFG_SYS_PLL0_S);
++			DBGOUT("pll_init 12.6\n");
++
+ 				NX_CLKPWR_SetPLLPowerOn(CFG_SYS_PLL1_USE);
++			DBGOUT("pll_init 12.7\n");
++
+ 				NX_CLKPWR_SetPLLPMS(1, CFG_SYS_PLL1_P, CFG_SYS_PLL1_M, CFG_SYS_PLL1_S);
++			DBGOUT("pll_init 12.8\n");
++
+ 				NX_CLKPWR_DoPLLChange();
++			DBGOUT("pll_init 13\n");
+ 
+ 				while (CFALSE == NX_CLKPWR_IsPLLStable()) { ; }
++							DBGOUT("pll_init 14\n");
++
+ 			}
+ 
+ 			/* 6. SetMemRefresh */
+ 			NX_MCUD_SetRefreshPeriod(CFG_SYS_MCUD_REFPRED);
++						DBGOUT("pll_init 15\n");
++
+ 		}
+ 		else if (pre_mclk > CFG_SYS_MCLK_FREQ)
+ 		{
++						DBGOUT("pll_init 16\n");
++
+ 			/* 1. SetMemCfg */
+ 			NX_MCUD_SetDelayLatency(CFG_SYS_MCUD_DLYLAT);
++			DBGOUT("pll_init 17\n");
+ 
+ 			/* 2. SetMemRefresh */
+ 			NX_MCUD_SetRefreshPeriod(CFG_SYS_MCUD_REFPRED);
++			DBGOUT("pll_init 18\n");
+ 
+ 			/* 3. SetDLL */
+ 			#if 	(CFG_SYS_MCLK_FREQ >= 400000000)
+@@ -394,6 +448,7 @@ static void pll_init(void)
+ 
+ 			NX_MCUD_SetDLLReset(CFG_SYS_MCUD_DLLRESET);
+ 			NX_MCUD_SetMCLKConfig((CFG_SYS_BCLK_DIV == 2) ? CTRUE : CFALSE, (CFG_SYS_MCLK_FREQ >= 200000000) ? CTRUE : CFALSE);
++			DBGOUT("pll_init 19\n");
+ 
+ 			/* 4. Pll change */
+ 			if (CFG_SYS_CPU_CORE_FREQ != pre_fclk)
+@@ -406,6 +461,8 @@ static void pll_init(void)
+ 				NX_CLKPWR_DoPLLChange();
+ 
+ 				while (CFALSE == NX_CLKPWR_IsPLLStable()) { ; }
++							DBGOUT("pll_init 20\n");
++
+ 			}
+ 
+ 			/* 5. SetMemTime */
+@@ -427,11 +484,15 @@ static void pll_init(void)
+ 			NX_MCUD_ApplyModeSetting();
+ 
+ 			while (NX_MCUD_IsBusyModeSetting()) { ; }
++						DBGOUT("pll_init 21\n");
++
+ 		}
+ 		else
+ 		{
+ 			if (CFG_SYS_CPU_CORE_FREQ != pre_fclk)
+ 			{
++							DBGOUT("pll_init 22\n");
++
+ 				NX_CLKPWR_SetClockCPU(CFG_SYS_CPU_CLKSRC, CFG_SYS_CPU_COREDIV, CFG_SYS_CPU_BUSDIV);
+ 				NX_CLKPWR_SetClockMCLK(CFG_SYS_MCLK_CLKSRC, CFG_SYS_MCLK_DIV, CFG_SYS_BCLK_DIV, CFG_SYS_PCLK_DIV);
+ 				NX_CLKPWR_SetPLLPMS(0, CFG_SYS_PLL0_P, CFG_SYS_PLL0_M, CFG_SYS_PLL0_S);
+@@ -440,6 +501,8 @@ static void pll_init(void)
+ 				NX_CLKPWR_DoPLLChange();
+ 
+ 				while (CFALSE == NX_CLKPWR_IsPLLStable()) { ; }
++							DBGOUT("pll_init 23\n");
++
+ 			}
+ 		}
+ 	}
+diff --git a/drivers/input/touchscreen/lfp100.c b/drivers/input/touchscreen/lfp100.c
+index c1575aae..37c5162d 100644
+--- a/drivers/input/touchscreen/lfp100.c
++++ b/drivers/input/touchscreen/lfp100.c
+@@ -327,7 +327,8 @@ static ssize_t show_volume(struct device *dev, struct device_attribute *attr,
+ 			char *buf)
+ {
+ 	u32 tmp;
+-
++	printk(KERN_WARNING "%s: LFP100 DCDC1 set to 0x%X\n",
++		__FUNCTION__, lfp100_read_reg(LFP100_DCDC1_PW));
+ 	tmp = lfp100_read_reg(LFP100_VOLUME);
+ 	return sprintf(buf, "VOLUME = %d\n", tmp);
+ }
+@@ -1107,6 +1108,16 @@ static int lfp100_chip_probe(struct platform_device *pdev)
+ 	enable_irq(gpio_to_irq(LFP100_INT));
+ 	printk(KERN_INFO "%s: success %s\n", __FUNCTION__, LFP100_NAME);
+ 
++//HACK HACK HACK
++			#if 	(CFG_SYS_MCLK_FREQ >= 266666666)
++				lfp100_write_reg(LFP100_DCDC1_PW, LFP100_DCDC1_PW_1P3_VOLTS);
++        		mdelay(100);// Give power time to settle to new level
++				printk(KERN_WARNING "%s: Clock faster than stock; LFP100 DCDC1 set to 0x%X\n",
++					__FUNCTION__, lfp100_read_reg(LFP100_DCDC1_PW));
++					
++			#endif
++
++
+ 	ret = 0;
+ no_lfp100:
+ 	return ret;
